@@ -116,6 +116,9 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 //         std::vector<float> recoMu_pt;
         float recoMu_pt[30];
         float recoMu_Iso[30];
+        float recoMu_charge[30];
+
+        
         float recoJet_Mjj;
         int weight;
         int selectionStep;
@@ -191,6 +194,7 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
 //     tree->Branch("recoMu_pt", &recoMu_pt, "ptOfMuonRecostructed/F"); 
     tree->Branch("recoMu_pt", recoMu_pt, "ptOfMuonRecostructed[30]/F"); 
     tree->Branch("recoMu_Iso", recoMu_Iso, "isolationOfMuonRecostructed[30]/F"); 
+    tree->Branch("recoMu_charge", recoMu_charge, "chargeOfMuonRecostructed[30]/F"); 
 
     
     
@@ -252,7 +256,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             
             recoMu_pt[n]=0;
             recoMu_Iso[n]=-0.1;
-
+            recoMu_charge[n]=0;
 
             GenMu_pt[n]=0;
             GenMu_eta[n]=0;
@@ -463,28 +467,34 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
         std::vector<TLorentzVector> mu_reco;
         int firstMuonCharge = 0;
+        int mu_idx = 0;
         for(std::vector<pat::Muon>::const_iterator pit = patMuons.begin() ; pit != patMuons.end() ; ++pit) {
             
-            if ( /*/ pit->muonID("TMOneStationTight") &&/*/ pit->isPFMuon() && pit->p4().pt() > 3 && abs(pit->p4().Eta()) < 2.4 && pit->track().isNonnull()) {     // Non sono riuscito a mettere i limiti su dxy < 0.5 e dz < 1.0         https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/analyzers/objects/LeptonAnalyzer.py#L174
+            if ( /*/ pit->muonID("TMOneStationTight") && pit->isPFMuon() &&/*/ pit->p4().pt() > 3 && abs(pit->p4().Eta()) < 2.4 && pit->track().isNonnull()) {     // Non sono riuscito a mettere i limiti su dxy < 0.5 e dz < 1.0         https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/analyzers/objects/LeptonAnalyzer.py#L174
                 if( pit->isPFMuon() &&  (pit->isGlobalMuon() || pit->isTrackerMuon())) { // this selection is muonID("POG_ID_Loose")    https://github.com/cms-sw/cmssw/blob/master/DataFormats/MuonReco/src/MuonSelectors.cc#L871
                     
-                    recoMu_pt[n] = pit->p4().pt();
-                    recoMu_Iso[n] = (pit->pfIsolationR03().sumChargedHadronPt + std::max( pit->pfIsolationR03().sumNeutralHadronEt +  pit->pfIsolationR03().sumPhotonEt -  pit->pfIsolationR03().sumPUPt/2, (float) 0.0));
+                    recoMu_charge[mu_idx] = pit->charge();
+                    recoMu_pt[mu_idx] = pit->p4().pt();
+                    recoMu_Iso[mu_idx] = (pit->pfIsolationR04().sumChargedHadronPt + std::max( pit->pfIsolationR04().sumNeutralHadronEt +  pit->pfIsolationR04().sumPhotonEt -  pit->pfIsolationR04().sumPUPt/2, (float) 0.0))/pit->p4().pt();
     //                 if (recoMu_Iso[n]<0.25) {
                         totalNumberRecoMu++;
-                        if (mu_reco.size() == 2) {nrecoMu++; continue;}
-                        if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 ) {nrecoMu++; continue;}
+                        if (mu_reco.size() == 2)  continue;
+                        if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 )  continue;
                         if (mu_reco.size() < 2) {
                             firstMuonCharge = pit->charge();
                             TLorentzVector tmpVector;
                             tmpVector.SetPtEtaPhiM(pit->p4().pt(), pit->p4().Eta(), pit->p4().Phi(), pit->p4().M());
                             mu_reco.push_back(tmpVector);
                     }
+                mu_idx++;
                 }
             }
         }
         
 
+        
+        
+        
         
         
         std::vector<TLorentzVector> jet_reco;
@@ -577,7 +587,11 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                                             
                                                             if (Hll_zstar < 2.5) {
                                                                 selectionStep = 14;
-                                                    
+                                                                
+                                                                if (recoMu_Iso[0] < 0.25 && recoMu_Iso[1] < 0.25) {
+                                                                    selectionStep = 15;
+                                                                
+                                                                }
                                                     
                                                             }
                                                         }
