@@ -44,6 +44,8 @@
 
 #include "DataFormats/PatCandidates/interface/Jet.h"
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
+
 
 // class declaration
 //
@@ -77,7 +79,7 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
         edm::EDGetTokenT<std::vector<pat::Jet> > slimmedJetToken;
         edm::EDGetTokenT<std::vector<pat::PackedCandidate> > PackedCandidatesToken;
-  
+        edm::EDGetTokenT<std::vector<pat::Muon> > slimmedMuonToken;
         
         
         TTree *tree;
@@ -99,6 +101,7 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         int nGenJet;
         int nrecoJet;
         int nrecoMu;
+        int totalNumberRecoMu;
         int nJet_iso03;
         float GenJet_pt[30];
         float GenJet_eta[30];
@@ -110,6 +113,9 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         float GenJet_Ht;
         float GenJet_Pt_projected_on_ll;
         
+//         std::vector<float> recoMu_pt;
+        float recoMu_pt[30];
+        float recoMu_Iso[30];
         float recoJet_Mjj;
         int weight;
         int selectionStep;
@@ -137,6 +143,7 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
   slimmedJetToken = consumes<std::vector<pat::Jet> >(edm::InputTag("slimmedJets"));
   PackedCandidatesToken = consumes<std::vector<pat::PackedCandidate> >(edm::InputTag("packedPFCandidates"));
     
+  slimmedMuonToken = consumes<std::vector<pat::Muon> >(edm::InputTag("slimmedMuons"));
     
   
     usesResource("TFileService");
@@ -178,8 +185,15 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
     
     
     tree->Branch("nrecoJet", &nrecoJet, "numberOfJet/I"); 
-    tree->Branch("nrecoMu", &nrecoMu, "numberOfMuonRecostructed/I"); 
+    tree->Branch("totalNumberRecoMu", &totalNumberRecoMu, "numberOfAllMuonRecostructed/I"); 
 
+    tree->Branch("nrecoMu", &nrecoMu, "numberOfMuonRecostructed/I"); 
+//     tree->Branch("recoMu_pt", &recoMu_pt, "ptOfMuonRecostructed/F"); 
+    tree->Branch("recoMu_pt", recoMu_pt, "ptOfMuonRecostructed[30]/F"); 
+    tree->Branch("recoMu_Iso", recoMu_Iso, "isolationOfMuonRecostructed[30]/F"); 
+
+    
+    
     tree->Branch("recoJet_Mjj", &recoJet_Mjj, "recoJet_Mjj/F");
     tree->Branch("selectionStep", &selectionStep, "selectionStep/I");
 
@@ -219,10 +233,13 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         int MuIdx=0;
         
         recoMu_Mll=0;
+        totalNumberRecoMu = 0;
         
         GenJet_Ht=0;
         GenJet_Pt_projected_on_ll=0;
         
+        
+//         while(recoMu_pt.size() > 0) recoMu_pt.clear();
         
         
         
@@ -232,8 +249,9 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             GenJet_phi[n]=0;
             GenJet_E[n]=0;
             GenJet_mass[n]=0;
-
             
+            recoMu_pt[n]=0;
+            recoMu_Iso[n]=-0.1;
 
 
             GenMu_pt[n]=0;
@@ -261,7 +279,6 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         auto  genInfo = *EventInf.product();
         
 
-        
         
         
         
@@ -413,25 +430,61 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         iEvent.getByToken(PackedCandidatesToken, PackedCandidatesCollection);
         auto  packedCandidate = *PackedCandidatesCollection.product();
           
-          
+
+        Handle<std::vector<pat::Muon>> patMuonsCollection;
+        iEvent.getByToken(slimmedMuonToken, patMuonsCollection);
+        std::vector<pat::Muon>  patMuons= *patMuonsCollection.product();  
         
         
+        
+        
+        
+//         std::vector<TLorentzVector> mu_reco;
+//         int firstMuonCharge = 0;
+//         for(std::vector<pat::PackedCandidate>::const_iterator pit = packedCandidate.begin() ; pit != packedCandidate.end() ; ++pit) {
+//             if (abs(pit->pdgId()) == 13 /*/&& pit->muonID() && pit->isPFMuon() && pit->isolationR03()/*/) { 
+//                 totalNumberRecoMu++;
+//                 recoMu_pt[n] = pit->p4().pt();
+//                 if (mu_reco.size() == 2) {nrecoMu++; continue;}
+//                 if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 ) {nrecoMu++; continue;}
+//                 if (mu_reco.size() < 2) {
+//                     firstMuonCharge = pit->charge();
+//                     TLorentzVector tmpVector;
+//                     tmpVector.SetPtEtaPhiM(pit->p4().pt(), pit->p4().Eta(), pit->p4().Phi(), pit->p4().M());
+//                     mu_reco.push_back(tmpVector);
+//                 }
+//             }
+//         }
+        
+        
+        
+        
+//         totalNumberRecoMu = patMuons.size();
+
         std::vector<TLorentzVector> mu_reco;
         int firstMuonCharge = 0;
-        for(std::vector<pat::PackedCandidate>::const_iterator pit = packedCandidate.begin() ; pit != packedCandidate.end() ; ++pit) {
-            if (abs(pit->pdgId()) == 13 ) { 
-                if (mu_reco.size() == 2) {nrecoMu++; continue;}
-                if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 ) {nrecoMu++; continue;}
-                if (mu_reco.size() < 2) {
-                    firstMuonCharge = pit->charge();
-                    TLorentzVector tmpVector;
-                    tmpVector.SetPtEtaPhiM(pit->p4().pt(), pit->p4().Eta(), pit->p4().Phi(), pit->p4().M());
-                    mu_reco.push_back(tmpVector);
+        for(std::vector<pat::Muon>::const_iterator pit = patMuons.begin() ; pit != patMuons.end() ; ++pit) {
+            
+            if ( /*/ pit->muonID("TMOneStationTight") &&/*/ pit->isPFMuon() && pit->p4().pt() > 3 && abs(pit->p4().Eta()) < 2.4 && pit->track().isNonnull()) {     // Non sono riuscito a mettere i limiti su dxy < 0.5 e dz < 1.0         https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/analyzers/objects/LeptonAnalyzer.py#L174
+                if( pit->isPFMuon() &&  (pit->isGlobalMuon() || pit->isTrackerMuon())) { // this selection is muonID("POG_ID_Loose")    https://github.com/cms-sw/cmssw/blob/master/DataFormats/MuonReco/src/MuonSelectors.cc#L871
+                    
+                    recoMu_pt[n] = pit->p4().pt();
+                    recoMu_Iso[n] = (pit->pfIsolationR03().sumChargedHadronPt + std::max( pit->pfIsolationR03().sumNeutralHadronEt +  pit->pfIsolationR03().sumPhotonEt -  pit->pfIsolationR03().sumPUPt/2, (float) 0.0));
+    //                 if (recoMu_Iso[n]<0.25) {
+                        totalNumberRecoMu++;
+                        if (mu_reco.size() == 2) {nrecoMu++; continue;}
+                        if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 ) {nrecoMu++; continue;}
+                        if (mu_reco.size() < 2) {
+                            firstMuonCharge = pit->charge();
+                            TLorentzVector tmpVector;
+                            tmpVector.SetPtEtaPhiM(pit->p4().pt(), pit->p4().Eta(), pit->p4().Phi(), pit->p4().M());
+                            mu_reco.push_back(tmpVector);
+                    }
                 }
             }
         }
         
-        
+
         
         
         std::vector<TLorentzVector> jet_reco;
@@ -446,15 +499,14 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             
             if(mu_reco.size() > 0)  theta1 = mu_reco[0].DeltaR(tmpVector);
             if(mu_reco.size() > 1)  theta2 = mu_reco[1].DeltaR(tmpVector);
-            if (theta1 > 0.3 && theta2 > 0.3) {                
-                if(1) {
-                        
-                        
-                        
-//             if (1) { // selezione su ID manca
+            if (theta1 > 0.3 && theta2 > 0.3) {         
+                float eta = abs(jit->p4().Eta());
+//                 if(jit->jetID()) {
+                if((eta<3.0 && ((jit->chargedMultiplicity() + jit->neutralMultiplicity()>1 && jit->neutralEmEnergyFraction() <0.99 && jit->neutralHadronEnergyFraction()<0.99) && (eta>2.4 || (jit->chargedEmEnergyFraction() <0.99 && jit->chargedHadronEnergyFraction() >0 && jit->chargedHadronMultiplicity()>0)))) || (eta>3.0 && (jit->neutralEmEnergyFraction() <0.90 && jit->neutralMultiplicity()>10)))    {    //this selection is jet.jetID('POG_PFID_Loose')  https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/physicsobjects/Jet.py#L98
+//                                Selection on puJetID() is still missing         https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/physicsobjects/Jet.py#L143
 
-                jet_reco.push_back(tmpVector);
-            }
+                    jet_reco.push_back(tmpVector);
+                }
             }
         }    
         

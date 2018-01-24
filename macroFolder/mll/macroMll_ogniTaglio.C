@@ -96,6 +96,7 @@ void SetStyle_and_Save (TCanvas * canv, TH1 * histo, std::string xTitle, std::st
 void DrawSame_and_Save(TCanvas * canv, TH1 * histo1, TH1 * histo2,TLegend * leg,std::string name, std::string nameSample) {
     canv->cd(1);
     gStyle->SetOptStat(0000);
+    gPad->SetLogy();   
     
     histo2->SetLineColor(kRed);
     histo1->GetYaxis()->SetTitle("Entries");
@@ -111,7 +112,6 @@ void DrawSame_and_Save(TCanvas * canv, TH1 * histo1, TH1 * histo2,TLegend * leg,
     float error = sqrt(error1*error1/integral1/integral1 + error2*error2/integral2/integral2); 
     double ratio = integral1/integral2;
 
-//     std::cout << error << " \t " << error1 << " \t " << error2 << std::endl;
                 
     stringstream ss_ratio;
     ss_ratio << std::setprecision(2) << ratio;
@@ -119,15 +119,40 @@ void DrawSame_and_Save(TCanvas * canv, TH1 * histo1, TH1 * histo2,TLegend * leg,
     
     stringstream ss_error;
     ss_error << std::setprecision(2) << error;
-//     ss_error <<  error;
     string error_str = ss_error.str();
     
     
     
+    double error1_highRegion = 0;
+    double error2_highRegion = 0;
+
+    float integral1_highRegion = histo1->IntegralAndError(histo1->GetXaxis()->FindBin(110), histo1->GetXaxis()->FindBin(145), error1_highRegion);
+    float integral2_highRegion = histo2->IntegralAndError(histo2->GetXaxis()->FindBin(110), histo2->GetXaxis()->FindBin(145), error2_highRegion);
+    float error_highRegion = sqrt(error1_highRegion*error1_highRegion/integral1_highRegion/integral1_highRegion + error2_highRegion*error2_highRegion/integral2_highRegion/integral2_highRegion); 
+    double ratio_highRegion = integral1_highRegion/integral2_highRegion;
+
+                
+    stringstream ss_ratio_highRegion;
+    ss_ratio_highRegion << std::setprecision(2) << ratio_highRegion;
+    string ratio_str_highRegion = ss_ratio_highRegion.str();
     
-    float yt2 = 0.2;
+    stringstream ss_error_highRegion;
+    ss_error_highRegion << std::setprecision(2) << error_highRegion;
+    string error_str_highRegion = ss_error_highRegion.str();
+    
+    
+    
+    
+    float yt2 = 0.15;
     float xt2 = 0.25;
-    TLatex * t2 = new TLatex(xt2,yt2 ,("LO/NLO="+ratio_str+" +- "+error_str).c_str());
+    TLatex * t1 = new TLatex(xt2,yt2+0.05 ,("LO/NLO="+ratio_str+" +- "+error_str).c_str());
+    t1->SetNDC();
+    t1->SetTextAlign(22);
+    t1->SetTextSize(0.04);
+    t1->Draw();
+    
+    
+    TLatex * t2 = new TLatex(xt2+0.07 ,yt2 ,("LO/NLO="+ratio_str_highRegion+" +- "+error_str_highRegion+" in 110<Mll<145").c_str());
     t2->SetNDC();
     t2->SetTextAlign(22);
     t2->SetTextSize(0.04);
@@ -176,11 +201,11 @@ void macroMll_ogniTaglio () {
         
         
         
-//         TFile * f_NLO = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_InclusiveSum_NLO.root");
-//         TFile * f_LO  = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_InclusiveSum_LO.root");
+        TFile * f_NLO = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_InclusiveSum_NLO.root");
+        TFile * f_LO  = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_InclusiveSum_LO.root");
         
-        TFile * f_NLO = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_HighMassSum_NLO.root");
-        TFile * f_LO  = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_HighMassSum_LO.root");
+//         TFile * f_NLO = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_HighMassSum_NLO.root");
+//         TFile * f_LO  = new TFile ("/scratch/mandorli/Hmumu/AnalyzerMiniAOD/CMSSW_8_0_28/src/AnalyzerMiniAOD/test_HighMassSum_LO.root");
         
         
         f_NLO->cd("MyModule");
@@ -198,7 +223,7 @@ void macroMll_ogniTaglio () {
         
 
         std::string nameSample = "Inclusive";
-        nameSample = "highMass";
+//         nameSample = "highMass";
 
        
         TCanvas * canv = new TCanvas ("c", "c", 800,1000); 
@@ -207,7 +232,7 @@ void macroMll_ogniTaglio () {
         float mll_max = 0;
         float mll_min = 0;
         if(nameSample.find("Inclusive")!=std::string::npos) {
-            mll_max = 120;
+            mll_max = 150;
             mll_min = 60;
             
         }
@@ -225,6 +250,12 @@ void macroMll_ogniTaglio () {
         std::vector<TH1F*> hVEC_recoMqq_NLO;
         std::vector<TH1F*> hVEC_recoMqq_LO; 
         
+        std::vector<TH1F*> hVEC_nrecoJet_NLO; 
+        std::vector<TH1F*> hVEC_nrecoJet_LO; 
+
+        std::vector<TH1F*> hVEC_genJet_Ht_NLO; 
+        std::vector<TH1F*> hVEC_genJet_Ht_LO; 
+
         float ptMin = 0;
         float ptMax = 120;
         std::vector<TH1F*> hVEC_pt1q_NLO;
@@ -247,8 +278,8 @@ void macroMll_ogniTaglio () {
 
             if (n < 10) n_str = "0"+n_str;
 
-            TH1F * hMll_NLO = new TH1F (("hMll_NLO"+n_str).c_str(), (cutNames[n]+";Mll [GeV];").c_str(), 40, mll_min, mll_max); 
-            TH1F * hMll_LO = new TH1F (("hMll_LO"+n_str).c_str(), (cutNames[n]+";Mll [GeV];").c_str(), 40, mll_min, mll_max); 
+            TH1F * hMll_NLO = new TH1F (("hMll_NLO"+n_str).c_str(), (cutNames[n]+";Mll [GeV];").c_str(), 35, mll_min, mll_max); 
+            TH1F * hMll_LO = new TH1F (("hMll_LO"+n_str).c_str(), (cutNames[n]+";Mll [GeV];").c_str(), 35, mll_min, mll_max); 
             hMll_NLO->Sumw2();
             hMll_LO->Sumw2();
             
@@ -278,6 +309,19 @@ void macroMll_ogniTaglio () {
 
             
             
+            TH1F * hnrecoJet_NLO = new TH1F (("hnrecoJet_NLO"+n_str).c_str(), (cutNames[n]+";# reco jets;").c_str(), 40, ptMin, ptMax); 
+            TH1F * hnrecoJet_LO  = new TH1F (("hnrecoJet_LO"+n_str).c_str(), (cutNames[n]+";# reco jets;").c_str(), 40, ptMin, ptMax); 
+            hnrecoJet_NLO->Sumw2();
+            hnrecoJet_LO->Sumw2();
+            
+            
+            TH1F * hgenJet_Ht_NLO = new TH1F (("hgenJet_Ht_NLO"+n_str).c_str(), (cutNames[n]+";gen H_T [GeV];").c_str(), 40, ptMin, ptMax); 
+            TH1F * hgenJet_Ht_LO  = new TH1F (("hgenJet_Ht_LO"+n_str).c_str(), (cutNames[n]+";gen H_T [GeV];").c_str(), 40, ptMin, ptMax); 
+            hgenJet_Ht_NLO->Sumw2();
+            hgenJet_Ht_LO->Sumw2();
+            
+            
+            
             hVEC_Mll_NLO.push_back(hMll_NLO);
             hVEC_Mll_LO.push_back(hMll_LO);
             
@@ -291,6 +335,12 @@ void macroMll_ogniTaglio () {
             hVEC_pt1q_LO.push_back(hpt1q_LO);
             hVEC_pt2q_NLO.push_back(hpt2q_NLO);
             hVEC_pt2q_LO.push_back(hpt2q_LO);
+            
+            
+            hVEC_nrecoJet_NLO.push_back(hnrecoJet_NLO);
+            hVEC_nrecoJet_LO.push_back(hnrecoJet_LO);
+            hVEC_genJet_Ht_NLO.push_back(hgenJet_Ht_NLO);
+            hVEC_genJet_Ht_LO.push_back(hgenJet_Ht_LO);
         
         }
         
@@ -314,6 +364,11 @@ void macroMll_ogniTaglio () {
         float pt_q_NLO[30]={};
         float pt_q_LO[30]={};
 
+        int nrecoJet_NLO = 0;
+        int nrecoJet_LO = 0;
+        float GenJet_Ht_NLO = 0;
+        float GenJet_Ht_LO = 0;
+        
         int selectionStep_NLO=0;
         int selectionStep_LO=0;
 
@@ -325,6 +380,9 @@ void macroMll_ogniTaglio () {
         tree_NLO->SetBranchAddress("GenJet_pt", &pt_q_NLO);
         tree_NLO->SetBranchAddress("recoJet_Mjj", &recoJet_Mjj_NLO);
         tree_NLO->SetBranchAddress("selectionStep", &selectionStep_NLO);
+        tree_NLO->SetBranchAddress("nrecoJet", &nrecoJet_NLO);
+        tree_NLO->SetBranchAddress("GenJet_Ht", &GenJet_Ht_NLO);
+        
         
         tree_LO->SetBranchAddress("GenMu_Mll", &GenMll_LO);
         tree_LO->SetBranchAddress("recoMu_Mll", &recoMu_Mll_LO);
@@ -333,7 +391,8 @@ void macroMll_ogniTaglio () {
         tree_LO->SetBranchAddress("GenJet_pt", &pt_q_LO);
         tree_LO->SetBranchAddress("recoJet_Mjj", &recoJet_Mjj_LO);
         tree_LO->SetBranchAddress("selectionStep", &selectionStep_LO);
-        
+        tree_LO->SetBranchAddress("nrecoJet", &nrecoJet_LO);
+        tree_LO->SetBranchAddress("GenJet_Ht", &GenJet_Ht_LO);
 
 
         int total = 0;
@@ -347,6 +406,7 @@ void macroMll_ogniTaglio () {
             else w = -1; */         
             w = weight_NLO;
 
+             if (recoMu_Mll_NLO < 55) continue;
 //             if ((recoMu_Mll_NLO < 75) || (recoMu_Mll_NLO > 105)) continue;
 //             if ((GenMll_NLO < 75) || (GenMll_NLO > 105)) continue;
 
@@ -358,6 +418,8 @@ void macroMll_ogniTaglio () {
                     hVEC_recoMqq_NLO[n]->Fill(recoJet_Mjj_NLO, w);
                     hVEC_pt1q_NLO[n]->Fill(pt_q_NLO[0], w);
                     hVEC_pt2q_NLO[n]->Fill(pt_q_NLO[1], w);
+                    hVEC_nrecoJet_NLO[n]->Fill(nrecoJet_NLO, w);
+                    hVEC_genJet_Ht_NLO[n]->Fill(GenJet_Ht_NLO, w);
                 }
 
             }
@@ -371,6 +433,8 @@ void macroMll_ogniTaglio () {
                     hVEC_recoMqq_NLO[nCut-1]->Fill(recoJet_Mjj_NLO, w);
                     hVEC_pt1q_NLO[nCut-1]->Fill(pt_q_NLO[0], w);
                     hVEC_pt2q_NLO[nCut-1]->Fill(pt_q_NLO[1], w);  
+                    hVEC_nrecoJet_NLO[nCut-1]->Fill(nrecoJet_NLO, w);
+                    hVEC_genJet_Ht_NLO[nCut-1]->Fill(GenJet_Ht_NLO, w);
             }
             
         }
@@ -388,7 +452,7 @@ void macroMll_ogniTaglio () {
 //             else w = -1;     
             w = weight_LO;
             
-            
+             if (recoMu_Mll_LO < 55) continue;
 //             if ((recoMu_Mll_LO < 75) || (recoMu_Mll_LO > 105)) continue;
 //             if ((GenMll_LO < 75) || (GenMll_LO > 105)) continue;
 
@@ -402,6 +466,9 @@ void macroMll_ogniTaglio () {
                     hVEC_recoMqq_LO[n]->Fill(recoJet_Mjj_LO, w);
                     hVEC_pt1q_LO[n]->Fill(pt_q_LO[0], w);
                     hVEC_pt2q_LO[n]->Fill(pt_q_LO[1], w);
+                    hVEC_nrecoJet_LO[n]->Fill(nrecoJet_LO, w);
+                    hVEC_genJet_Ht_LO[n]->Fill(GenJet_Ht_LO, w);
+                    
                 }
             }
             
@@ -412,6 +479,8 @@ void macroMll_ogniTaglio () {
                     hVEC_recoMqq_LO[nCut-1]->Fill(recoJet_Mjj_LO, w);
                     hVEC_pt1q_LO[nCut-1]->Fill(pt_q_LO[0], w);
                     hVEC_pt2q_LO[nCut-1]->Fill(pt_q_LO[1], w);  
+                    hVEC_nrecoJet_NLO[nCut-1]->Fill(nrecoJet_NLO, w);
+                    hVEC_genJet_Ht_NLO[nCut-1]->Fill(GenJet_Ht_NLO, w);
             }
             
             
@@ -478,13 +547,18 @@ void macroMll_ogniTaglio () {
             hVEC_recoMqq_NLO[n]->Scale(normalization_NLO);
             hVEC_pt1q_NLO[n]->Scale(normalization_NLO);
             hVEC_pt2q_NLO[n]->Scale(normalization_NLO);
+            hVEC_nrecoJet_NLO[n]->Scale(normalization_NLO);
+            hVEC_genJet_Ht_NLO[n]->Scale(normalization_NLO);
+            
+            
             
             hVEC_Mll_LO[n]->Scale(normalization_LO);
             hVEC_genMqq_LO[n]->Scale(normalization_LO);
             hVEC_recoMqq_LO[n]->Scale(normalization_LO);
             hVEC_pt1q_LO[n]->Scale(normalization_LO);
             hVEC_pt2q_LO[n]->Scale(normalization_LO);
-
+            hVEC_nrecoJet_LO[n]->Scale(normalization_LO);
+            hVEC_genJet_Ht_LO[n]->Scale(normalization_LO);
         
 
             DrawSame_and_Save(canv, hVEC_Mll_LO[n], hVEC_Mll_NLO[n], myLegend, ("figureOgniTaglio/hMll_"+n_str).c_str(), nameSample);
@@ -492,6 +566,8 @@ void macroMll_ogniTaglio () {
             DrawSame_and_Save(canv, hVEC_recoMqq_LO[n], hVEC_recoMqq_NLO[n], myLegend, ("figureOgniTaglio/hMqqReco_"+n_str).c_str(), nameSample);
             DrawSame_and_Save(canv, hVEC_pt1q_LO[n], hVEC_pt1q_NLO[n], myLegend, ("figureOgniTaglio/hpt1q_"+n_str).c_str(), nameSample);
             DrawSame_and_Save(canv, hVEC_pt2q_LO[n], hVEC_pt2q_NLO[n], myLegend, ("figureOgniTaglio/hpt2q_"+n_str).c_str(), nameSample);
+            DrawSame_and_Save(canv, hVEC_nrecoJet_LO[n], hVEC_nrecoJet_NLO[n], myLegend, ("figureOgniTaglio/hnrecoJet_"+n_str).c_str(), nameSample);
+            DrawSame_and_Save(canv, hVEC_genJet_Ht_LO[n], hVEC_genJet_Ht_NLO[n], myLegend, ("figureOgniTaglio/hgenJetHt_"+n_str).c_str(), nameSample);
 
         
         }
