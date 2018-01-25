@@ -557,8 +557,12 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                         
 //                         if (recoJet_Mjj > 200) {
 //                             selectionStep = 5;
-                        
-                        
+                                                                                       
+                        if (recoMu_Iso[0] < 0.25 && recoMu_Iso[1] < 0.25) {
+                            selectionStep = 5;
+                                                                    
+                                                                    
+
                             if (jet_reco[0].Pt() > 35) {
                                 selectionStep = 6;
                             
@@ -588,8 +592,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                                             if (Hll_zstar < 2.5) {
                                                                 selectionStep = 14;
                                                                 
-                                                                if (recoMu_Iso[0] < 0.25 && recoMu_Iso[1] < 0.25) {
-                                                                    selectionStep = 15;
+
                                                                 
                                                                 }
                                                     
