@@ -120,6 +120,9 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
         
         float recoJet_Mjj;
+        float recoJet_pt1;
+        float recoJet_pt2;
+        float qqDeltaEta;
         int weight;
         int selectionStep;
         
@@ -199,6 +202,9 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
     
     
     tree->Branch("recoJet_Mjj", &recoJet_Mjj, "recoJet_Mjj/F");
+    tree->Branch("recoJet_pt1",&recoJet_pt1,"recoJet_pt1/F");
+    tree->Branch("recoJet_pt2",&recoJet_pt2,"recoJet_pt2/F");
+    tree->Branch("qqDeltaEta", &qqDeltaEta, "qqDeltaEta/F");
     tree->Branch("selectionStep", &selectionStep, "selectionStep/I");
 
         
@@ -236,6 +242,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         Mjj_iso03 = 0;
         int MuIdx=0;
         
+        qqDeltaEta=0;
         recoMu_Mll=0;
         totalNumberRecoMu = 0;
         
@@ -535,7 +542,8 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             
             TLorentzVector qq_p4 =  jet_reco[0] + jet_reco[1];
             recoJet_Mjj = qq_p4.M();
-
+            qqDeltaEta = jet_reco[0].Eta() - jet_reco[1].Eta();
+            if (qqDeltaEta < 0) qqDeltaEta =  -1.*qqDeltaEta;
             
             if(mu_reco.size() == 2) {
                 selectionStep = 2;
@@ -586,16 +594,18 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                                     if (1) { //selezione sul bTagging
                                                         selectionStep = 12;
                                                         
-                                                        if ( abs(jet_reco[0].Eta() - jet_reco[1].Eta()) < 2.5) {
+
+                                                            
+                                                        if (Hll_zstar < 2.5) {
                                                             selectionStep = 13;
                                                             
-                                                            if (Hll_zstar < 2.5) {
-                                                                selectionStep = 14;
+                                                            
+                                                            if ( qqDeltaEta > 2.5) {
+                                                                selectionStep = 14;                                       
                                                                 
 
                                                                 
                                                                 }
-                                                    
                                                             }
                                                         }
                                                     }
