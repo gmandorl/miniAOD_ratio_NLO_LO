@@ -120,6 +120,7 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
         
         float recoJet_Mjj;
+        float recoJet_pt[30];
         float recoJet_pt1;
         float recoJet_pt2;
         float qqDeltaEta;
@@ -202,6 +203,7 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
     
     
     tree->Branch("recoJet_Mjj", &recoJet_Mjj, "recoJet_Mjj/F");
+    tree->Branch("recoJet_pt",&recoJet_pt,"recoJet_ptOfAllJets[30]/F");
     tree->Branch("recoJet_pt1",&recoJet_pt1,"recoJet_pt1/F");
     tree->Branch("recoJet_pt2",&recoJet_pt2,"recoJet_pt2/F");
     tree->Branch("qqDeltaEta", &qqDeltaEta, "qqDeltaEta/F");
@@ -264,7 +266,8 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             recoMu_pt[n]=0;
             recoMu_Iso[n]=-0.1;
             recoMu_charge[n]=0;
-
+            recoJet_pt[n]=0;
+            
             GenMu_pt[n]=0;
             GenMu_eta[n]=0;
             GenMu_phi[n]=0;
@@ -503,7 +506,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         
         
         
-        
+        int idx_jet = 0;
         std::vector<TLorentzVector> jet_reco;
         for(std::vector<pat::Jet>::const_iterator jit = patJets.begin() ; jit != patJets.end() ; ++jit) {
             
@@ -521,7 +524,8 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 //                 if(jit->jetID()) {
                 if((eta<3.0 && ((jit->chargedMultiplicity() + jit->neutralMultiplicity()>1 && jit->neutralEmEnergyFraction() <0.99 && jit->neutralHadronEnergyFraction()<0.99) && (eta>2.4 || (jit->chargedEmEnergyFraction() <0.99 && jit->chargedHadronEnergyFraction() >0 && jit->chargedHadronMultiplicity()>0)))) || (eta>3.0 && (jit->neutralEmEnergyFraction() <0.90 && jit->neutralMultiplicity()>10)))    {    //this selection is jet.jetID('POG_PFID_Loose')  https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/physicsobjects/Jet.py#L98
 //                                Selection on puJetID() is still missing         https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/Heppy/python/physicsobjects/Jet.py#L143
-
+                    recoJet_pt[idx_jet]=jit->p4().pt();
+                    idx_jet++;
                     jet_reco.push_back(tmpVector);
                 }
             }
