@@ -46,6 +46,8 @@
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 
+#include <DataFormats/Provenance/interface/EventAuxiliary.h>
+
 
 // class declaration
 //
@@ -124,9 +126,14 @@ class GenJetAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         float recoJet_pt1;
         float recoJet_pt2;
         float qqDeltaEta;
+        float Hll_zstar;
+        
         int weight;
         int selectionStep;
-        
+        int eventNumber;
+        int runNumber;
+        int lumiSection;
+
 };
 
 //
@@ -201,15 +208,18 @@ GenJetAnalyzer::GenJetAnalyzer(const edm::ParameterSet& iConfig)
     tree->Branch("recoMu_charge", recoMu_charge, "chargeOfMuonRecostructed[30]/F"); 
 
     
-    
+    tree->Branch("eventNumber",&eventNumber, "eventNumber/I");
+    tree->Branch("runNumber",&runNumber, "runNumber/I");
     tree->Branch("recoJet_Mjj", &recoJet_Mjj, "recoJet_Mjj/F");
     tree->Branch("recoJet_pt",&recoJet_pt,"recoJet_ptOfAllJets[30]/F");
     tree->Branch("recoJet_pt1",&recoJet_pt1,"recoJet_pt1/F");
     tree->Branch("recoJet_pt2",&recoJet_pt2,"recoJet_pt2/F");
     tree->Branch("qqDeltaEta", &qqDeltaEta, "qqDeltaEta/F");
+    tree->Branch("Hll_zstar", &Hll_zstar, "Hll_zstar/F");
     tree->Branch("selectionStep", &selectionStep, "selectionStep/I");
+    tree->Branch("lumiSection", &lumiSection, "lumiSection/I");
 
-        
+
         
 }
 
@@ -234,6 +244,9 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
    using namespace edm;
 
    
+        lumiSection = 0;
+        eventNumber = 0;
+        runNumber = 0;
         selectionStep = 0;
         weight = 1;
         nGenMu = 0;
@@ -243,6 +256,8 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         GenJet_Mjj = 0;
         Mjj_iso03 = 0;
         int MuIdx=0;
+        Hll_zstar = 0;
+        
         
         qqDeltaEta=0;
         recoMu_Mll=0;
@@ -291,23 +306,25 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         Handle<GenEventInfoProduct> EventInf;
         iEvent.getByToken(GenEventInfoProductToken, EventInf);
         auto  genInfo = *EventInf.product();
-        
-
-        
-        
+//        std::cout << iEvent.id().event() << std::endl;
+//        std::cout << iEvent.eventAuxiliary().luminosityBlock() << std::endl;
         
         
+       
         
         
         double genWeight = EventInf->weight();
         if (genWeight < 0) weight = -1;
+        eventNumber = iEvent.id().event();
+
+        runNumber = iEvent.id().run();
+        lumiSection = iEvent.eventAuxiliary().luminosityBlock();
+//        std::cout << lumiSection << " \t " << eventNumber  << std::endl;
         
-        
-        
-        
-        
-        
-        
+
+//         if (lumiSection!=110938001 && lumiSection!=110938210 && lumiSection!=110938418 && lumiSection!=110938538 && lumiSection!=110939608 && lumiSection!=110940060) return;
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////GEN OBJECT/////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -427,7 +444,6 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
           
           
           
-          
         nrecoMu = 0;
         nrecoJet = 0;
         recoJet_Mjj = 0;
@@ -486,7 +502,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                     recoMu_charge[mu_idx] = pit->charge();
                     recoMu_pt[mu_idx] = pit->p4().pt();
                     recoMu_Iso[mu_idx] = (pit->pfIsolationR04().sumChargedHadronPt + std::max( pit->pfIsolationR04().sumNeutralHadronEt +  pit->pfIsolationR04().sumPhotonEt -  pit->pfIsolationR04().sumPUPt/2, (float) 0.0))/pit->p4().pt();
-    //                 if (recoMu_Iso[n]<0.25) {
+                     if (recoMu_Iso[n]<0.25) {
                         totalNumberRecoMu++;
                         if (mu_reco.size() == 2)  continue;
                         if (mu_reco.size() == 1 && firstMuonCharge*pit->charge() > 0 )  continue;
@@ -495,6 +511,7 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                             TLorentzVector tmpVector;
                             tmpVector.SetPtEtaPhiM(pit->p4().pt(), pit->p4().Eta(), pit->p4().Phi(), pit->p4().M());
                             mu_reco.push_back(tmpVector);
+                        }
                     }
                 mu_idx++;
                 }
@@ -502,7 +519,6 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         }
         
 
-        
         
         
         
@@ -536,7 +552,6 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         if(mu_reco.size() > 1) recoMu_Mll = (mu_reco[0] + mu_reco[1]).M();
         
         
-        
         nrecoJet = jet_reco.size();
         nrecoMu = mu_reco.size();
         
@@ -555,23 +570,29 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                 TLorentzVector Hll_p4 =  mu_reco[0] + mu_reco[1];
                 float Hll_p4_mass = Hll_p4.M();
                 float Hll_ystar = Hll_p4.Rapidity() - (jet_reco[0].Rapidity() + jet_reco[1].Rapidity()) ;
-                float Hll_zstar = TMath::Abs( Hll_ystar/ (jet_reco[0].Rapidity()-jet_reco[1].Rapidity() )) ;
+                Hll_zstar = TMath::Abs( Hll_ystar/ (jet_reco[0].Rapidity()-jet_reco[1].Rapidity() )) ;
                 
-
+                recoJet_pt1=jet_reco[0].Pt();
+                recoJet_pt2=jet_reco[1].Pt();
                 
-//                 if (Hll_p4_mass > 110) {
-//                      selectionStep = 3;
+                 if (Hll_p4_mass > 110) {
+                      selectionStep = 3;
                     
                 
                     if (Hll_p4_mass < 145) {
                         selectionStep = 4;
             
                         
+                        
+                        if ( qqDeltaEta > 2.5) {
+                            selectionStep = 5; 
+                                                                
+                                                                
 //                         if (recoJet_Mjj > 200) {
 //                             selectionStep = 5;
                                                                                        
-                        if (recoMu_Iso[0] < 0.25 && recoMu_Iso[1] < 0.25) {
-                            selectionStep = 5;
+//                        if (recoMu_Iso[0] < 0.25 && recoMu_Iso[1] < 0.25) {   <--  non sono soddisfatti perche a volte i muoni 0 e 1 non sono quelli selezionati
+//                            selectionStep = 5;
                                                                     
                                                                     
 
@@ -581,35 +602,35 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                 if (jet_reco[1].Pt() > 25) {                   
                                     selectionStep = 7;
                                 
-                                
-                                    if (mu_reco[0].Pt() > 30) {
+                                    if (recoJet_Mjj > 200) {
                                         selectionStep = 8;
-                                    
-                                        if (mu_reco[1].Pt() > 10) {                   
-                                            selectionStep = 9;                            
-                            
+                                                                     
+                                
+                                        if (mu_reco[0].Pt() > 30) {
+                                            selectionStep = 9;
                                         
-                                            if (abs(mu_reco[0].Eta()) < 2.4) {
-                                                selectionStep = 10;
+                                            if (mu_reco[1].Pt() > 10) {                   
+                                                selectionStep = 10;                            
+                                
                                             
-                                                if (abs(mu_reco[1].Eta()) < 2.4) {                   
-                                                    selectionStep = 11;                     
-                            
-                                                    if (1) { //selezione sul bTagging
-                                                        selectionStep = 12;
-                                                        
-
-                                                            
-                                                        if (Hll_zstar < 2.5) {
+                                                if (abs(mu_reco[0].Eta()) < 2.4) {
+                                                    selectionStep = 11;
+                                                
+                                                    if (abs(mu_reco[1].Eta()) < 2.4) {                   
+                                                        selectionStep = 12;                     
+                                
+                                                        if (1) { //selezione sul bTagging
                                                             selectionStep = 13;
                                                             
-                                                            
-                                                            if ( qqDeltaEta > 2.5) {
-                                                                selectionStep = 14;                                       
-                                                                
 
                                                                 
-                                                                }
+                                                            if (Hll_zstar < 2.5) {
+                                                                selectionStep = 14;
+                                                                
+                                                                
+
+                                                                        
+                                                                        
                                                             }
                                                         }
                                                     }
@@ -618,11 +639,10 @@ GenJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                         }
                                     }
                                 }
-                        
                             }
-//                         }
+                        }
                     }
-//                 }
+                }
             }
         }
         
